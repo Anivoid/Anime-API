@@ -4,9 +4,6 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "functions": {
-    "api/cron/**": {
-      "maxDuration": 60
-    },
     "api/stream/**": {
       "maxDuration": 30
     },
