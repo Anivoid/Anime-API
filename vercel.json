@@ -1,0 +1,23 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/provider-health",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/rss-check",
+      "schedule": "*/30 * * * *"
+    }
+  ],
+  "functions": {
+    "api/cron/**": {
+      "maxDuration": 60
+    },
+    "api/stream/**": {
+      "maxDuration": 30
+    },
+    "api/admin/providers/health/**": {
+      "maxDuration": 60
+    }
+  }
+}
