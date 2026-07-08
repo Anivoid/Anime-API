@@ -8,7 +8,7 @@ import { LatestEpisodeCard } from "@/components/LatestEpisodeCard";
 import { TopAnimeSidebar } from "@/components/TopAnimeSidebar";
 import { ScheduleWidget } from "@/components/ScheduleWidget";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 async function getAniListTrending() {
   try {
