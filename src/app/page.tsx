@@ -87,11 +87,11 @@ function AniListAnimeCard({ item }: { item: AniListMedia }) {
 const LETTERS = ["All", "#", "0-9", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 export default async function Home() {
-  const [trending, latestEpisodes, newReleases, newAdded, justCompleted] = await Promise.all([
+  const [trending, rawLatestEpisodes, rawNewReleases, newAdded, justCompleted] = await Promise.all([
     getAniListTrending(),
     prisma.episode.findMany({
       orderBy: { createdAt: "desc" },
-      take: 18,
+      take: 200,
       include: {
         anime: {
           select: {
@@ -104,7 +104,7 @@ export default async function Home() {
     // New Release: recently added episodes
     prisma.episode.findMany({
       orderBy: { createdAt: "desc" },
-      take: 6,
+      take: 50,
       include: {
         anime: {
           select: {
@@ -132,6 +132,24 @@ export default async function Home() {
       },
     }),
   ]);
+
+  const latestEpisodes = (() => {
+    const seen = new Set<string>();
+    return rawLatestEpisodes.filter((ep) => {
+      if (seen.has(ep.animeId)) return false;
+      seen.add(ep.animeId);
+      return true;
+    }).slice(0, 18);
+  })();
+
+  const newReleases = (() => {
+    const seen = new Set<string>();
+    return rawNewReleases.filter((ep) => {
+      if (seen.has(ep.animeId)) return false;
+      seen.add(ep.animeId);
+      return true;
+    }).slice(0, 6);
+  })();
 
   return (
     <div className="min-h-screen bg-[#0d0d1a] text-white">
