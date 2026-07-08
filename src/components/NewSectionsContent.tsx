@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const ANILIST_URL = "https://graphql.anilist.co";
+
 interface AnimeItem {
   id: number;
   title: string;
@@ -15,6 +17,36 @@ interface AnimeItem {
   currentEpisode?: number;
   averageScore: number | null;
   genres: string[];
+}
+
+async function fetchAnilist(query: string): Promise<Record<string, unknown>[]> {
+  const res = await fetch(ANILIST_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data?.data?.Page?.media || [];
+}
+
+function mapMedia(m: Record<string, unknown>): AnimeItem {
+  const title = m.title as { romaji: string; english: string | null };
+  const img = m.coverImage as { large: string };
+  const next = m.nextAiringEpisode as { episode: number } | null;
+  return {
+    id: m.id as number,
+    title: title.english || title.romaji,
+    slug: `anilist-${m.id}`,
+    coverImage: img?.large || null,
+    format: m.format as string,
+    season: m.season as string | null,
+    seasonYear: m.seasonYear as number | null,
+    episodes: m.episodes as number | null,
+    currentEpisode: next?.episode || undefined,
+    averageScore: m.averageScore as number | null,
+    genres: (m.genres as string[]) || [],
+  };
 }
 
 function ListItem({ anime, href, showEpisode }: { anime: AnimeItem; href: string; showEpisode?: boolean }) {
@@ -61,15 +93,22 @@ export function NewSectionsContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/anilist-homepage?section=all")
-      .then((res) => res.json())
-      .then((data) => {
-        setRecent(data.recent || []);
-        setPopular(data.popular || []);
-        setCompleted(data.completed || []);
-        setLoading(false);
+    const airingQuery = `query { Page(page:1, perPage:10) { media(sort:START_DATE_DESC, type:ANIME, status:RELEASING, isAdult:false) { id title { romaji english } coverImage { large } format season seasonYear episodes nextAiringEpisode { episode } averageScore genres } } }`;
+    const popularQuery = `query { Page(page:1, perPage:10) { media(sort:POPULARITY_DESC, type:ANIME, isAdult:false) { id title { romaji english } coverImage { large } format season seasonYear episodes averageScore genres } } }`;
+    const completedQuery = `query { Page(page:1, perPage:10) { media(sort:END_DATE_DESC, type:ANIME, status:FINISHED, isAdult:false) { id title { romaji english } coverImage { large } format season seasonYear episodes averageScore genres } } }`;
+
+    Promise.all([
+      fetchAnilist(airingQuery),
+      fetchAnilist(popularQuery),
+      fetchAnilist(completedQuery),
+    ])
+      .then(([airing, pop, comp]) => {
+        setRecent(airing.map(mapMedia));
+        setPopular(pop.map(mapMedia));
+        setCompleted(comp.map(mapMedia));
       })
-      .catch(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -98,13 +137,10 @@ export function NewSectionsContent() {
   return (
     <section className="container mx-auto px-4 py-8 border-t border-white/5">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Currently Airing */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Currently Airing</h2>
-            <Link href="/browse?status=RELEASING" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-              →
-            </Link>
+            <Link href="/browse?status=RELEASING" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">→</Link>
           </div>
           <div className="space-y-3">
             {recent.map((anime) => (
@@ -112,14 +148,10 @@ export function NewSectionsContent() {
             ))}
           </div>
         </div>
-
-        {/* Most Popular */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Most Popular</h2>
-            <Link href="/browse?sort=popular" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-              →
-            </Link>
+            <Link href="/browse?sort=popular" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">→</Link>
           </div>
           <div className="space-y-3">
             {popular.map((anime) => (
@@ -127,14 +159,10 @@ export function NewSectionsContent() {
             ))}
           </div>
         </div>
-
-        {/* Recently Completed */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Recently Completed</h2>
-            <Link href="/browse?status=FINISHED" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-              →
-            </Link>
+            <Link href="/browse?status=FINISHED" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">→</Link>
           </div>
           <div className="space-y-3">
             {completed.map((anime) => (

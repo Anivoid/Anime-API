@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const ANILIST_URL = "https://graphql.anilist.co";
+
 interface TopAnime {
   id: number;
   title: string;
@@ -13,10 +15,49 @@ interface TopAnime {
   episodes: number | null;
   averageScore: number | null;
   genres: string[];
-  status: string;
 }
 
 type Tab = "day" | "week" | "month";
+
+async function fetchPopularAnime(): Promise<TopAnime[]> {
+  const query = `query {
+    Page(page: 1, perPage: 10) {
+      media(sort: POPULARITY_DESC, type: ANIME, isAdult: false) {
+        id
+        title { romaji english }
+        coverImage { large }
+        format
+        seasonYear
+        episodes
+        averageScore
+        genres
+      }
+    }
+  }`;
+  const res = await fetch(ANILIST_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  const media = data?.data?.Page?.media || [];
+  return media.map((m: Record<string, unknown>) => {
+    const title = m.title as { romaji: string; english: string | null };
+    const img = m.coverImage as { large: string };
+    return {
+      id: m.id as number,
+      title: title.english || title.romaji,
+      slug: `anilist-${m.id}`,
+      coverImage: img?.large || null,
+      format: m.format as string,
+      seasonYear: m.seasonYear as number | null,
+      episodes: m.episodes as number | null,
+      averageScore: m.averageScore as number | null,
+      genres: (m.genres as string[]) || [],
+    };
+  });
+}
 
 export function TopAnimeSidebar() {
   const [tab, setTab] = useState<Tab>("day");
@@ -25,13 +66,10 @@ export function TopAnimeSidebar() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/anilist-homepage?section=popular")
-      .then((r) => r.json())
-      .then((data) => {
-        setAnime(data.popular || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetchPopularAnime()
+      .then(setAnime)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [tab]);
 
   return (
