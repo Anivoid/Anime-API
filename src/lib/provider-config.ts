@@ -144,17 +144,23 @@ const DEFAULT_CONFIG: ProviderStoreData = {
   ],
 };
 
+let canWrite = true;
+
 function ensureConfigDir() {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+  if (!canWrite) return;
+  try {
+    if (!existsSync(CONFIG_DIR)) {
+      mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+  } catch {
+    canWrite = false;
   }
 }
 
 export function loadProviderConfig(): ProviderStoreData {
   try {
     ensureConfigDir();
-    if (!existsSync(CONFIG_FILE)) {
-      writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2));
+    if (!canWrite || !existsSync(CONFIG_FILE)) {
       return structuredClone(DEFAULT_CONFIG);
     }
     const raw = readFileSync(CONFIG_FILE, "utf-8");
@@ -181,8 +187,13 @@ export function loadProviderConfig(): ProviderStoreData {
 }
 
 export function saveProviderConfig(data: ProviderStoreData): void {
-  ensureConfigDir();
-  writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+  try {
+    ensureConfigDir();
+    if (!canWrite) return;
+    writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+  } catch {
+    canWrite = false;
+  }
 }
 
 export function getProviderById(id: string): ProviderConfig | undefined {
