@@ -26,6 +26,8 @@ interface CollectionDetail {
       rating: number | null;
       releaseYear: number;
       status: string;
+      type: string | null;
+      season: string | null;
       genres: { genre: { name: string } }[];
     };
   }[];
@@ -120,9 +122,12 @@ export default function CollectionDetailPage({ params }: { params: Promise<{ id:
                   id={item.anime.id}
                   title={item.anime.title}
                   slug={item.anime.slug}
+                  coverImage={item.anime.coverImage}
                   rating={item.anime.rating}
                   releaseYear={item.anime.releaseYear}
                   status={item.anime.status}
+                  type={item.anime.type || undefined}
+                  season={item.anime.season}
                   genres={item.anime.genres.map((g) => g.genre.name)}
                 />
                 {isOwner && (

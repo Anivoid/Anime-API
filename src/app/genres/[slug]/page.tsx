@@ -13,7 +13,12 @@ interface Anime {
   rating: number | null;
   releaseYear: number;
   status: string;
+  type: string | null;
+  season: string | null;
+  subCount: number | null;
+  dubCount: number | null;
   genres: { genre: { name: string } }[];
+  _count?: { episodes: number };
 }
 
 export default function GenreDetailPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -43,7 +48,7 @@ export default function GenreDetailPage({ params }: { params: Promise<{ slug: st
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
             {anime.map((item) => (
-              <AnimeCard key={item.id} id={item.id} title={item.title} slug={item.slug} rating={item.rating} releaseYear={item.releaseYear} status={item.status} genres={item.genres.map((ag) => ag.genre.name)} />
+              <AnimeCard key={item.id} id={item.id} title={item.title} slug={item.slug} coverImage={item.coverImage} rating={item.rating} releaseYear={item.releaseYear} status={item.status} type={item.type || undefined} season={item.season} subCount={item.subCount} dubCount={item.dubCount} episodeCount={item._count?.episodes ?? null} genres={item.genres.map((ag) => ag.genre.name)} />
             ))}
           </div>
         )}

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         user: { select: { name: true, username: true } },
         items: {
           include: {
-            anime: { select: { id: true, title: true, slug: true, coverImage: true } },
+            anime: { select: { id: true, title: true, slug: true, coverImage: true, rating: true, releaseYear: true, status: true, type: true, season: true, genres: { include: { genre: true } } } },
           },
           orderBy: { addedAt: "desc" },
         },

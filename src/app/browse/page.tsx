@@ -22,7 +22,7 @@ interface Anime {
   featured: boolean;
   trending: boolean;
   genres: { genre: { name: string } }[];
-  _count?: { animeLikes: number };
+  _count?: { animeLikes: number; episodes: number };
 }
 
 interface Genre {
@@ -245,8 +245,10 @@ function BrowseContent() {
                   releaseYear={item.releaseYear}
                   status={item.status}
                   type={item.type || undefined}
+                  season={item.season}
                   subCount={item.subCount}
                   dubCount={item.dubCount}
+                  episodeCount={item._count?.episodes ?? null}
                   genres={item.genres.map((ag) => ag.genre.name)}
                 />
               ))}
