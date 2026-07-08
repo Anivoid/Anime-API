@@ -26,7 +26,7 @@ export function BannerCarousel() {
   useEffect(() => {
     const query = `query {
       Page(page: 1, perPage: 5) {
-        media(sort: SCORE_DESC, type: ANIME, isAdult: false) {
+        media(sort: TRENDING_DESC, type: ANIME, isAdult: false, status: RELEASING) {
           id
           title { romaji english }
           coverImage { large }
