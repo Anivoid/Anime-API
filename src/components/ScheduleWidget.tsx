@@ -9,10 +9,10 @@ interface ScheduleEntry {
   episodeNumber: number;
   airTime: string;
   airDay: string;
+  coverImage: string | null;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export function ScheduleWidget() {
   const [selectedDay, setSelectedDay] = useState("Mon");
@@ -26,7 +26,7 @@ export function ScheduleWidget() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/schedule")
+    fetch("/api/anilist-homepage?section=schedule")
       .then((r) => r.json())
       .then((data) => {
         setSchedule(data.schedule || []);
@@ -79,14 +79,16 @@ export function ScheduleWidget() {
             {filteredSchedule.map((entry, i) => (
               <div key={i} className="flex items-center gap-3 group">
                 <span className="text-xs text-gray-500 w-14 font-mono">{entry.airTime}</span>
-                <span className="text-sm text-gray-300 flex-1 group-hover:text-purple-400 transition-colors truncate">
-                  {entry.animeTitle}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-300 group-hover:text-purple-400 transition-colors truncate block">
+                    {entry.animeTitle}
+                  </span>
+                </div>
                 <Link
-                  href={`/watch/${entry.slug}/${entry.episodeNumber}`}
-                  className="text-[11px] bg-white/5 hover:bg-purple-600 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1"
+                  href={`/anime/${entry.slug}`}
+                  className="text-[11px] bg-white/5 hover:bg-purple-600 text-gray-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1 flex-shrink-0"
                 >
-                  <span>▶</span> Ep {entry.episodeNumber}
+                  <span>Ep {entry.episodeNumber}</span>
                 </Link>
               </div>
             ))}

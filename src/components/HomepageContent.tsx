@@ -1,34 +1,91 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LatestEpisodeCard } from "./LatestEpisodeCard";
+import Link from "next/link";
 
-interface EpisodeWithAnime {
-  id: string;
-  number: number;
-  animeId: string;
-  anime: {
-    id: string;
-    title: string;
-    slug: string;
-    coverImage: string | null;
-    type: string | null;
-    subCount: number | null;
-    dubCount: number | null;
-    releaseYear: number | null;
-    status: string | null;
-  };
+interface EpisodeItem {
+  id: number;
+  title: string;
+  slug: string;
+  coverImage: string | null;
+  format: string;
+  season: string | null;
+  seasonYear: number | null;
+  totalEpisodes: number | null;
+  episodeNumber: number;
+  nextAiringAt: number | null;
+  timeUntilAiring: number | null;
+  averageScore: number | null;
+  genres: string[];
+  type: string;
+}
+
+function formatTimeUntil(seconds: number): string {
+  if (seconds < 60) return "Airing now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+function EpisodeCard({ item }: { item: EpisodeItem }) {
+  const title = item.title;
+  return (
+    <Link href={`/anime/${item.slug}`} className="group block">
+      <div className="relative aspect-[3/4] bg-[#1a1a2e] rounded overflow-hidden mb-2 border border-white/5 group-hover:border-purple-500/50 transition-all duration-200">
+        {item.coverImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.coverImage} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+        <div className="absolute top-2 left-2 z-10">
+          <span className="bg-black/70 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-medium">{item.format}</span>
+        </div>
+        <div className="absolute top-2 right-2 z-10">
+          <span className="bg-purple-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
+            EP {item.episodeNumber}
+          </span>
+        </div>
+        {item.timeUntilAiring !== null && item.timeUntilAiring > 0 && (
+          <div className="absolute bottom-2 left-2 z-10">
+            <span className="bg-orange-500/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
+              {formatTimeUntil(item.timeUntilAiring)}
+            </span>
+          </div>
+        )}
+        {item.nextAiringAt !== null && (
+          <div className="absolute bottom-2 right-2 z-10">
+            <span className="bg-green-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">LIVE</span>
+          </div>
+        )}
+      </div>
+      <h3 className="font-semibold text-gray-200 group-hover:text-purple-400 transition-colors duration-200 line-clamp-2 text-sm leading-tight">
+        {title}
+      </h3>
+      <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-500">
+        {item.seasonYear && <span>{item.seasonYear}</span>}
+        {item.totalEpisodes && <span>• {item.totalEpisodes} ep</span>}
+        {item.averageScore && <span className="text-green-400">• {item.averageScore}%</span>}
+      </div>
+      {item.genres.length > 0 && (
+        <div className="flex gap-1 mt-1 flex-wrap">
+          {item.genres.slice(0, 2).map((g) => (
+            <span key={g} className="text-[9px] bg-white/5 text-gray-400 px-1 py-0.5 rounded">{g}</span>
+          ))}
+        </div>
+      )}
+    </Link>
+  );
 }
 
 export function LatestEpisodesSection() {
-  const [episodes, setEpisodes] = useState<EpisodeWithAnime[]>([]);
+  const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/episodes?mode=latest&limit=200")
+    fetch("/api/anilist-homepage?section=episodes")
       .then((res) => res.json())
-      .then((data: EpisodeWithAnime[]) => {
-        setEpisodes(data.slice(0, 18));
+      .then((data) => {
+        setEpisodes(data.episodes || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -73,17 +130,8 @@ export function LatestEpisodesSection() {
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {episodes.map((ep) => (
-          <LatestEpisodeCard
-            key={ep.id}
-            animeTitle={ep.anime.title}
-            slug={ep.anime.slug}
-            coverImage={ep.anime.coverImage}
-            episodeNumber={ep.number}
-            subCount={ep.anime.subCount}
-            dubCount={ep.anime.dubCount}
-            type={ep.anime.type}
-          />
+        {episodes.map((item) => (
+          <EpisodeCard key={item.id} item={item} />
         ))}
       </div>
     </>

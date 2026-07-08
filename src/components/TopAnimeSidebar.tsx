@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface TopAnime {
-  id: string;
+  id: number;
   title: string;
   slug: string;
   coverImage: string | null;
-  rating: number | null;
-  type: string | null;
-  subCount: number | null;
-  dubCount: number | null;
+  format: string;
+  seasonYear: number | null;
+  episodes: number | null;
+  averageScore: number | null;
+  genres: string[];
+  status: string;
 }
 
 type Tab = "day" | "week" | "month";
@@ -23,11 +25,10 @@ export function TopAnimeSidebar() {
 
   useEffect(() => {
     setLoading(true);
-    const sort = tab === "day" ? "rating" : tab === "week" ? "popular" : "trending";
-    fetch(`/api/anime?limit=10&sort=${sort === "rating" ? "" : "popular"}`)
+    fetch("/api/anilist-homepage?section=popular")
       .then((r) => r.json())
       .then((data) => {
-        setAnime(data.anime || []);
+        setAnime(data.popular || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -93,13 +94,11 @@ export function TopAnimeSidebar() {
                   {item.title}
                 </h4>
                 <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                  {item.subCount !== null && (
-                    <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {item.subCount}</span>
+                  {item.averageScore && (
+                    <span className="bg-green-600/80 text-white px-1 rounded font-bold">{item.averageScore}%</span>
                   )}
-                  {item.dubCount !== null && item.dubCount > 0 && (
-                    <span className="bg-yellow-500/80 text-black px-1 rounded font-bold">DUB {item.dubCount}</span>
-                  )}
-                  {item.type && <span className="text-gray-500">• {item.type}</span>}
+                  {item.format && <span className="text-gray-500">• {item.format}</span>}
+                  {item.seasonYear && <span className="text-gray-600">• {item.seasonYear}</span>}
                 </div>
               </div>
             </Link>

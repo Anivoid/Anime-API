@@ -3,43 +3,34 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-interface EpisodeWithAnime {
-  id: string;
-  number: number;
-  animeId: string;
-  anime: {
-    id: string;
-    title: string;
-    slug: string;
-    coverImage: string | null;
-    type: string | null;
-    subCount: number | null;
-    dubCount: number | null;
-    releaseYear: number | null;
-    status: string | null;
-  };
-}
-
 interface AnimeItem {
-  id: string;
+  id: number;
   title: string;
   slug: string;
   coverImage: string | null;
-  subCount: number | null;
-  dubCount: number | null;
-  type: string | null;
-  releaseYear: number | null;
+  format: string;
+  season: string | null;
+  seasonYear: number | null;
+  episodes: number | null;
+  currentEpisode?: number;
+  averageScore: number | null;
+  genres: string[];
 }
 
-function AnimeListItem({ anime, href }: { anime: AnimeItem; href: string }) {
+function ListItem({ anime, href, showEpisode }: { anime: AnimeItem; href: string; showEpisode?: boolean }) {
   return (
     <Link href={href} className="flex items-center gap-3 group">
-      <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0">
+      <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0 relative">
         {anime.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={anime.coverImage} alt={anime.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
+        )}
+        {showEpisode && anime.currentEpisode && (
+          <div className="absolute top-0 right-0 bg-purple-600/90 text-white text-[8px] px-1 rounded-bl font-bold">
+            EP {anime.currentEpisode}
+          </div>
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -47,63 +38,38 @@ function AnimeListItem({ anime, href }: { anime: AnimeItem; href: string }) {
           {anime.title}
         </h4>
         <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-          {anime.subCount !== null && (
-            <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {anime.subCount}</span>
-          )}
-          {anime.dubCount !== null && anime.dubCount > 0 && (
-            <span className="bg-yellow-500/80 text-black px-1 rounded font-bold">DUB {anime.dubCount}</span>
-          )}
-          {anime.type && <span className="text-gray-500">• {anime.type}</span>}
-          <span className="text-gray-600">• {anime.releaseYear}</span>
+          {anime.averageScore && <span className="text-green-400 font-bold">{anime.averageScore}%</span>}
+          {anime.format && <span className="text-gray-500">• {anime.format}</span>}
+          <span className="text-gray-600">• {anime.seasonYear}</span>
         </div>
+        {anime.genres.length > 0 && (
+          <div className="flex gap-1 mt-0.5">
+            {anime.genres.slice(0, 2).map((g) => (
+              <span key={g} className="text-[8px] bg-white/5 text-gray-500 px-1 rounded">{g}</span>
+            ))}
+          </div>
+        )}
       </div>
     </Link>
   );
 }
 
 export function NewSectionsContent() {
-  const [newReleases, setNewReleases] = useState<EpisodeWithAnime[]>([]);
-  const [newAdded, setNewAdded] = useState<AnimeItem[]>([]);
-  const [justCompleted, setJustCompleted] = useState<AnimeItem[]>([]);
+  const [recent, setRecent] = useState<AnimeItem[]>([]);
+  const [popular, setPopular] = useState<AnimeItem[]>([]);
+  const [completed, setCompleted] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [episodesRes, animeRes, completedRes] = await Promise.all([
-          fetch("/api/episodes?mode=latest&limit=50"),
-          fetch("/api/anime?limit=6&sort=new"),
-          fetch("/api/anime?status=COMPLETED&limit=6&sort=new"),
-        ]);
-
-        if (episodesRes.ok) {
-          const episodes: EpisodeWithAnime[] = await episodesRes.json();
-          const seen = new Set<string>();
-          const deduped = episodes.filter((ep) => {
-            if (seen.has(ep.animeId)) return false;
-            seen.add(ep.animeId);
-            return true;
-          }).slice(0, 6);
-          setNewReleases(deduped);
-        }
-
-        if (animeRes.ok) {
-          const data = await animeRes.json();
-          setNewAdded((data.anime || []).slice(0, 6));
-        }
-
-        if (completedRes.ok) {
-          const data = await completedRes.json();
-          setJustCompleted((data.anime || []).slice(0, 6));
-        }
-      } catch (error) {
-        console.error("Failed to fetch new sections:", error);
-      } finally {
+    fetch("/api/anilist-homepage?section=all")
+      .then((res) => res.json())
+      .then((data) => {
+        setRecent(data.recent || []);
+        setPopular(data.popular || []);
+        setCompleted(data.completed || []);
         setLoading(false);
-      }
-    }
-
-    fetchData();
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -132,75 +98,47 @@ export function NewSectionsContent() {
   return (
     <section className="container mx-auto px-4 py-8 border-t border-white/5">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* New Release */}
+        {/* Currently Airing */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">New Release</h2>
-            <Link href="/browse?sort=new" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
+            <h2 className="text-lg font-bold text-white">Currently Airing</h2>
+            <Link href="/browse?status=RELEASING" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
               →
             </Link>
           </div>
           <div className="space-y-3">
-            {newReleases.map((ep) => (
-              <Link
-                key={ep.id}
-                href={`/watch/${ep.anime.slug}/${ep.number}`}
-                className="flex items-center gap-3 group"
-              >
-                <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0">
-                  {ep.anime.coverImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={ep.anime.coverImage} alt={ep.anime.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm text-gray-200 group-hover:text-purple-400 transition-colors line-clamp-1">
-                    {ep.anime.title}
-                  </h4>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                    {ep.anime.subCount !== null && (
-                      <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {ep.anime.subCount}</span>
-                    )}
-                    {ep.anime.dubCount !== null && ep.anime.dubCount > 0 && (
-                      <span className="bg-yellow-500/80 text-black px-1 rounded font-bold">DUB {ep.anime.dubCount}</span>
-                    )}
-                    {ep.anime.type && <span className="text-gray-500">• {ep.anime.type}</span>}
-                    <span className="text-gray-600">• {ep.anime.releaseYear}</span>
-                  </div>
-                </div>
-              </Link>
+            {recent.map((anime) => (
+              <ListItem key={anime.id} anime={anime} href={`/anime/${anime.slug}`} showEpisode />
             ))}
           </div>
         </div>
 
-        {/* New Added */}
+        {/* Most Popular */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">New Added</h2>
-            <Link href="/browse" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
+            <h2 className="text-lg font-bold text-white">Most Popular</h2>
+            <Link href="/browse?sort=popular" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
               →
             </Link>
           </div>
           <div className="space-y-3">
-            {newAdded.map((anime) => (
-              <AnimeListItem key={anime.id} anime={anime} href={`/anime/${anime.slug}`} />
+            {popular.map((anime) => (
+              <ListItem key={anime.id} anime={anime} href={`/anime/${anime.slug}`} />
             ))}
           </div>
         </div>
 
-        {/* Just Completed */}
+        {/* Recently Completed */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">Just Completed</h2>
-            <Link href="/browse?status=COMPLETED" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
+            <h2 className="text-lg font-bold text-white">Recently Completed</h2>
+            <Link href="/browse?status=FINISHED" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
               →
             </Link>
           </div>
           <div className="space-y-3">
-            {justCompleted.map((anime) => (
-              <AnimeListItem key={anime.id} anime={anime} href={`/anime/${anime.slug}`} />
+            {completed.map((anime) => (
+              <ListItem key={anime.id} anime={anime} href={`/anime/${anime.slug}`} />
             ))}
           </div>
         </div>
