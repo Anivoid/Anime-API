@@ -1,6 +1,43 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "latest";
+    const limit = parseInt(searchParams.get("limit") || "200");
+
+    if (mode === "latest") {
+      const raw = await prisma.episode.findMany({
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          anime: {
+            select: {
+              id: true, title: true, slug: true, coverImage: true,
+              type: true, subCount: true, dubCount: true, releaseYear: true, status: true,
+            },
+          },
+        },
+      });
+
+      const seen = new Set<string>();
+      const deduped = raw.filter((ep) => {
+        if (seen.has(ep.animeId)) return false;
+        seen.add(ep.animeId);
+        return true;
+      });
+
+      return NextResponse.json(deduped);
+    }
+
+    return NextResponse.json([]);
+  } catch (error) {
+    console.error("Error fetching episodes:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

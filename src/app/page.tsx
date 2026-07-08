@@ -2,11 +2,10 @@ import Header from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { getCurrentSeason } from "@/lib/anilist-metadata";
-import { LatestEpisodeCard } from "@/components/LatestEpisodeCard";
 import { TopAnimeSidebar } from "@/components/TopAnimeSidebar";
 import { ScheduleWidget } from "@/components/ScheduleWidget";
+import { LatestEpisodesSection } from "@/components/HomepageContent";
+import { NewSectionsContent } from "@/components/NewSectionsContent";
 
 async function getAniListTrending() {
   try {
@@ -87,69 +86,7 @@ function AniListAnimeCard({ item }: { item: AniListMedia }) {
 const LETTERS = ["All", "#", "0-9", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 export default async function Home() {
-  const [trending, rawLatestEpisodes, rawNewReleases, newAdded, justCompleted] = await Promise.all([
-    getAniListTrending(),
-    prisma.episode.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        anime: {
-          select: {
-            id: true, title: true, slug: true, coverImage: true,
-            type: true, subCount: true, dubCount: true,
-          },
-        },
-      },
-    }),
-    // New Release: recently added episodes
-    prisma.episode.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include: {
-        anime: {
-          select: {
-            id: true, title: true, slug: true, coverImage: true,
-            type: true, subCount: true, dubCount: true, releaseYear: true, status: true,
-          },
-        },
-      },
-    }),
-    // New Added: recently added anime
-    prisma.anime.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      include: {
-        genres: { include: { genre: true } },
-      },
-    }),
-    // Just Completed
-    prisma.anime.findMany({
-      where: { status: "COMPLETED" },
-      orderBy: { updatedAt: "desc" },
-      take: 6,
-      include: {
-        genres: { include: { genre: true } },
-      },
-    }),
-  ]);
-
-  const latestEpisodes = (() => {
-    const seen = new Set<string>();
-    return rawLatestEpisodes.filter((ep) => {
-      if (seen.has(ep.animeId)) return false;
-      seen.add(ep.animeId);
-      return true;
-    }).slice(0, 18);
-  })();
-
-  const newReleases = (() => {
-    const seen = new Set<string>();
-    return rawNewReleases.filter((ep) => {
-      if (seen.has(ep.animeId)) return false;
-      seen.add(ep.animeId);
-      return true;
-    }).slice(0, 6);
-  })();
+  const trending = await getAniListTrending();
 
   return (
     <div className="min-h-screen bg-[#0d0d1a] text-white">
@@ -159,38 +96,9 @@ export default async function Home() {
       {/* Latest Episode + Top Anime Sidebar */}
       <section className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main content */}
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">Latest Episode</h2>
-              <div className="flex gap-2">
-                {["All", "Sub", "Dub", "Trending"].map((tab) => (
-                  <button
-                    key={tab}
-                    className="text-xs px-3 py-1.5 rounded bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {latestEpisodes.map((ep) => (
-                <LatestEpisodeCard
-                  key={ep.id}
-                  animeTitle={ep.anime.title}
-                  slug={ep.anime.slug}
-                  coverImage={ep.anime.coverImage}
-                  episodeNumber={ep.number}
-                  subCount={ep.anime.subCount}
-                  dubCount={ep.anime.dubCount}
-                  type={ep.anime.type}
-                />
-              ))}
-            </div>
+            <LatestEpisodesSection />
           </div>
-
-          {/* Sidebar */}
           <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
             <TopAnimeSidebar />
             <ScheduleWidget />
@@ -216,132 +124,7 @@ export default async function Home() {
       )}
 
       {/* New Release / New Added / Just Completed - 3 columns */}
-      <section className="container mx-auto px-4 py-8 border-t border-white/5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* New Release */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">New Release</h2>
-              <Link href="/browse?sort=new" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-                →
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {newReleases.map((ep) => (
-                <Link
-                  key={ep.id}
-                  href={`/watch/${ep.anime.slug}/${ep.number}`}
-                  className="flex items-center gap-3 group"
-                >
-                  <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0">
-                    {ep.anime.coverImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={ep.anime.coverImage} alt={ep.anime.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm text-gray-200 group-hover:text-purple-400 transition-colors line-clamp-1">
-                      {ep.anime.title}
-                    </h4>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                      {ep.anime.subCount !== null && (
-                        <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {ep.anime.subCount}</span>
-                      )}
-                      {ep.anime.dubCount !== null && ep.anime.dubCount > 0 && (
-                        <span className="bg-yellow-500/80 text-black px-1 rounded font-bold">DUB {ep.anime.dubCount}</span>
-                      )}
-                      {ep.anime.type && <span className="text-gray-500">• {ep.anime.type}</span>}
-                      <span className="text-gray-600">• {ep.anime.releaseYear}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* New Added */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">New Added</h2>
-              <Link href="/browse" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-                →
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {newAdded.map((anime) => (
-                <Link
-                  key={anime.id}
-                  href={`/anime/${anime.slug}`}
-                  className="flex items-center gap-3 group"
-                >
-                  <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0">
-                    {anime.coverImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={anime.coverImage} alt={anime.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm text-gray-200 group-hover:text-purple-400 transition-colors line-clamp-1">
-                      {anime.title}
-                    </h4>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                      {anime.subCount !== null && (
-                        <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {anime.subCount}</span>
-                      )}
-                      {anime.type && <span className="text-gray-500">• {anime.type}</span>}
-                      <span className="text-gray-600">• {anime.releaseYear}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Just Completed */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Just Completed</h2>
-              <Link href="/browse?status=COMPLETED" className="text-purple-400 text-xs hover:text-purple-300 transition-colors">
-                →
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {justCompleted.map((anime) => (
-                <Link
-                  key={anime.id}
-                  href={`/anime/${anime.slug}`}
-                  className="flex items-center gap-3 group"
-                >
-                  <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0">
-                    {anime.coverImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={anime.coverImage} alt={anime.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm text-gray-200 group-hover:text-purple-400 transition-colors line-clamp-1">
-                      {anime.title}
-                    </h4>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
-                      {anime.subCount !== null && (
-                        <span className="bg-green-600/80 text-white px-1 rounded font-bold">SUB {anime.subCount}</span>
-                      )}
-                      {anime.type && <span className="text-gray-500">• {anime.type}</span>}
-                      <span className="text-gray-600">• {anime.releaseYear}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <NewSectionsContent />
 
       {/* A-Z List */}
       <section className="container mx-auto px-4 py-8 border-t border-white/5">

@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     const year = searchParams.get("year") || "";
     const letter = searchParams.get("letter") || "";
     const trending = searchParams.get("trending") === "true";
+    const sort = searchParams.get("sort") || "title";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
     const skip = (page - 1) * limit;
@@ -67,6 +68,8 @@ export async function GET(request: Request) {
       }
     }
 
+    const orderBy = sort === "new" ? { createdAt: "desc" as const } : { title: "asc" as const };
+
     const [anime, total] = await Promise.all([
       prisma.anime.findMany({
         where,
@@ -78,7 +81,7 @@ export async function GET(request: Request) {
             select: { episodes: true, animeLikes: true, ratings: true },
           },
         },
-        orderBy: { title: "asc" },
+        orderBy,
         skip,
         take: limit,
       }),
