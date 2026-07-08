@@ -8,8 +8,6 @@ import { LatestEpisodeCard } from "@/components/LatestEpisodeCard";
 import { TopAnimeSidebar } from "@/components/TopAnimeSidebar";
 import { ScheduleWidget } from "@/components/ScheduleWidget";
 
-export const revalidate = 300;
-
 async function getAniListTrending() {
   try {
     const query = `query ($page: Int, $perPage: Int) {
