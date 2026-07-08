@@ -31,6 +31,7 @@ function EmbedContent() {
   const [showKeyHelp, setShowKeyHelp] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState(0);
+  const [embedUrl, setEmbedUrl] = useState<string | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stream fetching — uses provider system with proper fallback
@@ -84,6 +85,17 @@ function EmbedContent() {
 
         if (data.success && data.results?.streams?.length > 0) {
           setProvider(data.results.provider || server);
+
+          // Check for embed URL (Blogger, Vidhide, etc.) — use proxy iframe
+          const embedStream = data.results.streams.find((s: { url: string; type: string }) =>
+            /blogger\.com|vidhide|yourupload|mega\.nz|filedon|krakenfiles|pixeldrain|embed[2]?\./i.test(s.url)
+          );
+          if (embedStream) {
+            setEmbedUrl(`/api/embed-proxy?url=${encodeURIComponent(embedStream.url)}`);
+            setIsLoading(false);
+            return;
+          }
+
           // Prefer HLS streams
           const hlsStream = data.results.streams.find((s: { type: string; url: string }) => s.type === "hls" || s.url?.endsWith(".m3u8"));
           const stream = hlsStream || data.results.streams[0];
@@ -98,7 +110,7 @@ function EmbedContent() {
           const statuses = Object.entries(data.results.providerStatus) as [string, { enabled: boolean; healthy: boolean }][];
           const enabledCount = statuses.filter(([, s]) => s.enabled).length;
           const healthyCount = statuses.filter(([, s]) => s.healthy).length;
-          setError(`No streams available (${enabledCount} providers enabled, ${healthyCount} healthy). Add a SCRAPE_DO_TOKEN for real streams.`);
+          setError(`No streams available (${enabledCount} providers enabled, ${healthyCount} healthy).`);
         } else {
           setError("No streams available for this episode");
         }
@@ -276,9 +288,19 @@ function EmbedContent() {
       }}
       onMouseLeave={() => { if (isPlaying) hideTimer.current = setTimeout(() => setShowControls(false), 1000); }}
     >
+      {embedUrl && !error ? (
+        <iframe
+          src={embedUrl}
+          className="w-full h-full border-0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          onLoad={() => { setIsLoading(false); window.parent.postMessage(JSON.stringify({ type: "ready", provider }), "*"); }}
+        />
+      ) : (
       <video ref={videoRef} className="w-full h-full" playsInline onClick={togglePlay}
         onDoubleClick={() => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }}
       />
+      )}
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">

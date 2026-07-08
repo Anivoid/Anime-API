@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import { NotificationBell } from "./NotificationBell";
-import { ThemeToggle } from "./ThemeToggle";
 
 export default function Header() {
   const { data: session } = useSession();
@@ -47,54 +46,71 @@ export default function Header() {
   }, [mobileMenuOpen]);
 
   return (
-    <header className="bg-void-black/95 backdrop-blur-sm border-b border-void-red-dark/30 sticky top-0 z-50" role="banner">
+    <header className="bg-[#0a0a15]/95 backdrop-blur-sm border-b border-white/5 sticky top-0 z-50" role="banner">
       <nav className="container mx-auto px-4 py-3" aria-label="Main navigation">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-full border-2 border-void-red flex items-center justify-center bg-void-dark group-hover:glow-red transition-all duration-300 animate-glow-pulse">
-              <span className="brush-text text-void-red text-lg">V</span>
-            </div>
-            <div className="hidden sm:block">
-              <span className="brush-text text-xl text-white tracking-wider">
-                ANIME<span className="text-void-red">VOID</span>
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
+            <span className="text-xl font-bold text-white">
+              ANIME<span className="text-purple-500">VOID</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link href="/browse" className="text-gray-300 hover:text-void-red transition-colors font-medium" aria-current="page">
+          <div className="hidden md:flex items-center gap-5">
+            <Link href="/browse" className="text-gray-300 hover:text-purple-400 transition-colors text-sm font-medium">
               Browse
             </Link>
-            <Link href="/genres" className="text-gray-300 hover:text-void-red transition-colors font-medium">
+            <Link href="/genres" className="text-gray-300 hover:text-purple-400 transition-colors text-sm font-medium">
               Genres
             </Link>
-            <Link href="/schedule" className="text-gray-300 hover:text-void-red transition-colors font-medium">
+            <Link href="/schedule" className="text-gray-300 hover:text-purple-400 transition-colors text-sm font-medium">
               Schedule
             </Link>
-            <Link href="/forum" className="text-gray-300 hover:text-void-red transition-colors font-medium">
+            <Link href="/forum" className="text-gray-300 hover:text-purple-400 transition-colors text-sm font-medium">
               Forum
             </Link>
+          </div>
 
+          {/* Search bar */}
+          <div className="flex-1 max-w-md mx-4">
+            <Link href="/browse" className="block">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search anime..."
+                  readOnly
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-gray-300 placeholder-gray-500 focus:outline-none cursor-pointer hover:border-purple-500/50 transition-colors"
+                />
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </Link>
+          </div>
+
+          {/* Right side */}
+          <div className="hidden md:flex items-center gap-3">
             {session ? (
               <>
-                <Link href="/dashboard" className="text-gray-300 hover:text-void-red transition-colors font-medium">
+                <Link href="/dashboard" className="text-gray-300 hover:text-purple-400 transition-colors text-sm">
                   Dashboard
                 </Link>
-                <Link href="/watchlist" className="text-gray-300 hover:text-void-red transition-colors font-medium">
+                <Link href="/watchlist" className="text-gray-300 hover:text-purple-400 transition-colors text-sm">
                   Watchlist
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="text-void-red hover:text-void-red-glow transition-colors font-medium">
+                  <Link href="/admin" className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium">
                     Admin
                   </Link>
                 )}
                 <NotificationBell />
-                <ThemeToggle />
+                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold cursor-pointer">
+                  {session.user?.name?.charAt(0) || "U"}
+                </div>
                 <button
                   onClick={() => signOut()}
-                  className="bg-void-red/20 border border-void-red text-void-red px-4 py-2 rounded hover:bg-void-red hover:text-white transition-all duration-300"
+                  className="text-gray-400 hover:text-white text-sm transition-colors"
                   aria-label="Sign out"
                 >
                   Sign Out
@@ -102,14 +118,14 @@ export default function Header() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <Link href="/auth/login" className="text-gray-300 hover:text-white transition-colors">
+                <Link href="/auth/login" className="text-gray-300 hover:text-white transition-colors text-sm">
                   Login
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="bg-void-red px-5 py-2 rounded font-semibold hover:bg-void-red-dark transition-all duration-300 glow-red"
+                  className="bg-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors text-white"
                 >
-                  Sign Up
+                  Sign in
                 </Link>
               </div>
             )}
@@ -141,16 +157,16 @@ export default function Header() {
       {/* Mobile Menu Panel */}
       <div
         ref={menuRef}
-        className={`md:hidden fixed top-0 right-0 h-full w-72 bg-void-dark border-l border-void-red/20 z-50 transform transition-transform duration-300 ease-out ${
+        className={`md:hidden fixed top-0 right-0 h-full w-72 bg-[#0a0a15] border-l border-white/10 z-50 transform transition-transform duration-300 ease-out ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full">
           {/* User Info */}
-          <div className="p-6 border-b border-void-gray/30">
+          <div className="p-6 border-b border-white/5">
             {session ? (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-void-red flex items-center justify-center text-sm font-bold">
+                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-sm font-bold">
                   {session.user?.name?.charAt(0) || "U"}
                 </div>
                 <div className="min-w-0">
@@ -170,11 +186,11 @@ export default function Header() {
               </div>
             ) : (
               <div className="flex gap-3">
-                <Link href="/auth/login" className="flex-1 text-center border border-void-gray px-4 py-2 rounded text-gray-300 hover:bg-void-gray/30 transition-all">
+                <Link href="/auth/login" className="flex-1 text-center border border-white/10 px-4 py-2 rounded text-gray-300 hover:bg-white/5 transition-all">
                   Login
                 </Link>
-                <Link href="/auth/register" className="flex-1 text-center bg-void-red px-4 py-2 rounded font-semibold hover:bg-void-red-dark transition-all">
-                  Sign Up
+                <Link href="/auth/register" className="flex-1 text-center bg-purple-600 px-4 py-2 rounded font-semibold hover:bg-purple-700 transition-all text-white">
+                  Sign in
                 </Link>
               </div>
             )}
@@ -192,7 +208,7 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="block px-4 py-3 rounded-lg text-gray-300 hover:bg-void-red/10 hover:text-void-red transition-all duration-200"
+                  className="block px-4 py-3 rounded-lg text-gray-300 hover:bg-purple-600/10 hover:text-purple-400 transition-all duration-200"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.label}
@@ -201,7 +217,7 @@ export default function Header() {
             </div>
 
             {session && (
-              <div className="mt-4 pt-4 border-t border-void-gray/30 space-y-1">
+              <div className="mt-4 pt-4 border-t border-white/5 space-y-1">
                 {[
                   { href: "/dashboard", label: "Dashboard" },
                   { href: "/watchlist", label: "Watchlist" },
@@ -210,7 +226,7 @@ export default function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block px-4 py-3 rounded-lg text-gray-300 hover:bg-void-red/10 hover:text-void-red transition-all duration-200"
+                    className="block px-4 py-3 rounded-lg text-gray-300 hover:bg-purple-600/10 hover:text-purple-400 transition-all duration-200"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.label}
@@ -220,7 +236,7 @@ export default function Header() {
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="block px-4 py-3 rounded-lg text-void-red hover:bg-void-red/10 transition-all duration-200 font-medium"
+                    className="block px-4 py-3 rounded-lg text-purple-400 hover:bg-purple-600/10 transition-all duration-200 font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Admin Panel
@@ -232,10 +248,10 @@ export default function Header() {
 
           {/* Sign Out */}
           {session && (
-            <div className="p-4 border-t border-void-gray/30">
+            <div className="p-4 border-t border-white/5">
               <button
                 onClick={() => { signOut(); setMobileMenuOpen(false); }}
-                className="w-full px-4 py-3 rounded-lg border border-void-red text-void-red hover:bg-void-red hover:text-white transition-all duration-300 font-medium"
+                className="w-full px-4 py-3 rounded-lg border border-white/10 text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-300 font-medium"
               >
                 Sign Out
               </button>

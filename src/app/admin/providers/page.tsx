@@ -33,7 +33,6 @@ interface Provider {
   failCount: number;
   consecutiveFails: number;
   autoDisabled: boolean;
-  bypassService: string;
   description: string;
   baseUrl: string;
   timeout: number;
@@ -83,7 +82,6 @@ export default function ProvidersAdminPage() {
     name: "",
     baseUrl: "",
     type: "api",
-    bypassService: "none",
     timeout: 10000,
     description: "",
   });
@@ -106,7 +104,7 @@ export default function ProvidersAdminPage() {
   useEffect(() => { loadProviders(); }, [loadProviders]);
 
   const saveProviders = async (updates: {
-    providers?: { id: string; enabled?: boolean; priority?: number; bypassService?: string; timeout?: number; baseUrl?: string }[];
+    providers?: { id: string; enabled?: boolean; priority?: number; timeout?: number; baseUrl?: string }[];
     globalSettings?: Partial<GlobalSettings>;
     reorder?: { id: string; priority: number }[];
   }) => {
@@ -137,10 +135,6 @@ export default function ProvidersAdminPage() {
 
   const toggleProvider = (id: string, enabled: boolean) => {
     saveProviders({ providers: [{ id, enabled }] });
-  };
-
-  const updateBypass = (id: string, bypassService: string) => {
-    saveProviders({ providers: [{ id, bypassService: bypassService as Provider["bypassService"] }] });
   };
 
   const updateTimeout = (id: string, timeout: number) => {
@@ -225,7 +219,7 @@ export default function ProvidersAdminPage() {
       });
       if (res.ok) {
         setActiveTab("overview");
-        setNewProvider({ id: "", name: "", baseUrl: "", type: "api", bypassService: "none", timeout: 10000, description: "" });
+        setNewProvider({ id: "", name: "", baseUrl: "", type: "api", timeout: 10000, description: "" });
         await loadProviders();
         setMessage("Provider added");
       } else {
@@ -408,18 +402,6 @@ export default function ProvidersAdminPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Bypass</label>
-              <select
-                value={newProvider.bypassService}
-                onChange={(e) => setNewProvider({ ...newProvider, bypassService: e.target.value })}
-                className="w-full bg-void-black border border-void-gray/50 rounded-lg px-4 py-2 text-white text-sm focus:border-void-red/50 focus:outline-none"
-              >
-                <option value="none">Direct</option>
-                <option value="scrape.do">scrape.do</option>
-                <option value="flaresolverr">FlareSolverr</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-xs text-gray-500 mb-1">Timeout (ms)</label>
               <input
                 type="number"
@@ -452,19 +434,8 @@ export default function ProvidersAdminPage() {
         <div className="space-y-6">
           {/* API Keys */}
           <div className="bg-void-dark border border-void-gray/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">API Keys & Bypass Services</h3>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">scrape.do Token</label>
-                <input
-                  type="password"
-                  value={globalSettings.scrapeDoToken}
-                  onChange={(e) => setGlobalSettings({ ...globalSettings, scrapeDoToken: e.target.value })}
-                  className="w-full bg-void-black border border-void-gray/50 rounded-lg px-4 py-2 text-white text-sm focus:border-void-red/50 focus:outline-none"
-                  placeholder="your-scrape-do-token"
-                />
-                <p className="text-xs text-gray-600 mt-1">Get free 1000 credits/month at scrape.do — no credit card</p>
-              </div>
+            <h3 className="text-lg font-semibold text-white mb-4">Bypass Services</h3>
+            <div className="grid grid-cols-1 gap-6">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">FlareSolverr URL</label>
                 <input
@@ -666,9 +637,6 @@ export default function ProvidersAdminPage() {
                             {stats.checks24h} checks/24h
                           </span>
                           <span>{provider.successCount} ok / {provider.failCount} fail</span>
-                          {provider.bypassService !== "none" && (
-                            <span className="text-orange-400/70">Bypass: {provider.bypassService}</span>
-                          )}
                           {provider.lastChecked && (
                             <span>Last: {new Date(provider.lastChecked).toLocaleTimeString()}</span>
                           )}
@@ -705,17 +673,6 @@ export default function ProvidersAdminPage() {
                       >
                         {testing === provider.id ? "..." : "Test"}
                       </button>
-
-                      {/* Bypass */}
-                      <select
-                        value={provider.bypassService}
-                        onChange={(e) => updateBypass(provider.id, e.target.value)}
-                        className="bg-void-black border border-void-gray/50 rounded-lg px-2 py-1 text-xs text-gray-300 focus:border-void-red/50 focus:outline-none"
-                      >
-                        <option value="none">Direct</option>
-                        <option value="scrape.do">scrape.do</option>
-                        <option value="flaresolverr">FlareSolverr</option>
-                      </select>
 
                       {/* Timeout */}
                       <input
@@ -786,10 +743,6 @@ export default function ProvidersAdminPage() {
                           <div className="flex justify-between">
                             <span className="text-gray-500">Timeout</span>
                             <span className="text-white">{provider.timeout}ms</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Bypass</span>
-                            <span className="text-white">{provider.bypassService}</span>
                           </div>
                           <div>
                             <span className="text-gray-500">Base URL</span>

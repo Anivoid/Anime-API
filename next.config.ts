@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "mangadex.org" },
       { protocol: "https", hostname: "**.tile.cloudinary.com" },
       { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "s4.anilist.co" },
     ],
   },
   async headers() {
@@ -22,8 +23,8 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         headers: [
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
           { key: "Pragma", value: "no-cache" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {

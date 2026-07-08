@@ -28,29 +28,15 @@ function getHealthUrl(provider: ProviderConfig): string | null {
   if (!provider.baseUrl) return null;
 
   switch (provider.id) {
-    case "miruro":
-      return `${provider.baseUrl}/api/status`;
+    case "sankanime":
+      return `${provider.baseUrl}/samehadaku/search?q=naruto`;
     case "aniwatch":
       return `${provider.baseUrl}/aniwatch/search?keyword=naruto&page=1`;
     case "consumet":
       return `${provider.baseUrl}/anime/zoro/naruto`;
     default:
-      // Generic — try the base URL itself
       return provider.baseUrl;
   }
-}
-
-// Bypass logic (mirrors stream-providers.ts)
-function scrapeDoUrl(url: string, token: string): string {
-  return `https://api.scrape.do?token=${token}&url=${encodeURIComponent(url)}&render=true&super=true&sessionTtl=120`;
-}
-
-function resolveBypassUrl(url: string, provider: ProviderConfig, settings: ProviderStoreData["globalSettings"]): string {
-  if (provider.bypassService === "scrape.do" && provider.bypassKeyEnv) {
-    const token = process.env[provider.bypassKeyEnv] || settings.scrapeDoToken;
-    if (token) return scrapeDoUrl(url, token);
-  }
-  return url;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -95,14 +81,13 @@ async function checkProvider(
     return { ...base, status: "down", error: "No base URL configured" };
   }
 
-  const targetUrl = resolveBypassUrl(url, provider, settings);
   const start = Date.now();
 
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.min(provider.timeout || 10000, 8000));
 
-    const res = await fetch(targetUrl, {
+    const res = await fetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "AnimeVoid-HealthMonitor/1.0" },
     });
@@ -209,7 +194,6 @@ export interface ProviderStatusWithStats {
   failCount: number;
   consecutiveFails: number;
   autoDisabled: boolean;
-  bypassService: string;
   description: string;
   baseUrl: string;
   timeout: number;
@@ -238,7 +222,6 @@ export function getFullProviderStatus(): {
       failCount: p.failCount,
       consecutiveFails: p.consecutiveFails,
       autoDisabled: p.autoDisabled,
-      bypassService: p.bypassService || "none",
       description: p.description,
       baseUrl: p.baseUrl,
       timeout: p.timeout,

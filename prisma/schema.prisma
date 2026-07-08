@@ -157,6 +157,8 @@ model Anime {
   status      String   @default("ONGOING")
   type        String   @default("TV")
   rating      Float?
+  subCount    Int?     // Number of subbed episodes available
+  dubCount    Int?     // Number of dubbed episodes available
   featured    Boolean  @default(false)
   trending    Boolean  @default(false)
   pinned      Boolean  @default(false)

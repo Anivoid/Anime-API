@@ -1,55 +1,110 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 
-async function getOngoingAnime() {
-  return prisma.anime.findMany({
-    where: { status: "ONGOING" },
-    include: { episodes: { orderBy: { number: "desc" }, take: 1 } },
-    orderBy: { title: "asc" },
-  });
+interface ScheduleEntry {
+  animeTitle: string;
+  slug: string;
+  episodeNumber: number;
+  airTime: string;
+  airDay: string;
 }
 
-export default async function SchedulePage() {
-  const ongoingAnime = await getOngoingAnime();
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const FULL_DAYS: Record<string, string> = {
+  Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
+  Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
+};
+
+export default function SchedulePage() {
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const today = new Date().getDay();
+    return DAYS[today === 0 ? 6 : today - 1];
+  });
+  const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/schedule")
+      .then((r) => r.json())
+      .then((data) => {
+        setSchedule(data.schedule || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filteredSchedule = schedule.filter((s) => s.airDay === selectedDay);
 
   return (
-    <div className="min-h-screen bg-void-black text-white">
+    <div className="min-h-screen bg-[#0d0d1a] text-white">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">
-          RELEASE <span className="text-void-red">SCHEDULE</span>
-        </h1>
-        <div className="space-y-8">
-          {days.map((day, index) => {
-            const dayAnime = ongoingAnime.filter((_, i) => i % 7 === index);
-            if (dayAnime.length === 0) return null;
-            return (
-              <div key={day}>
-                <h2 className="text-xl font-bold mb-4 text-void-red">{day}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dayAnime.map((anime) => (
-                    <Link key={anime.id} href={`/anime/${anime.slug}`} className="bg-void-dark border border-void-gray/50 rounded-lg p-4 hover:border-void-red/50 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-20 bg-void-gray rounded overflow-hidden flex-shrink-0">
-                          <div className="w-full h-full bg-gradient-to-br from-void-crimson/30 to-void-dark" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{anime.title}</h3>
-                          <p className="text-sm text-gray-500">Latest: Episode {anime.episodes[0]?.number || "?"}</p>
-                          <p className="text-xs text-void-red mt-1">12:00 PM JST</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
+        <h1 className="text-3xl font-bold text-white mb-2">Schedule</h1>
+        <p className="text-gray-500 text-sm mb-6">Weekly anime release schedule</p>
+
+        {/* Day selector */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+          {DAYS.map((day) => (
+            <button
+              key={day}
+              onClick={() => setSelectedDay(day)}
+              className={`flex-shrink-0 px-6 py-3 rounded-lg text-center transition-all ${
+                selectedDay === day
+                  ? "bg-purple-600 text-white"
+                  : "bg-[#1a1a2e] text-gray-400 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <div className="text-xs uppercase tracking-wider opacity-70">{day}</div>
+              <div className="text-lg font-bold">{FULL_DAYS[day].slice(0, 3)}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Schedule list */}
+        {loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 bg-[#1a1a2e] rounded-lg p-4 animate-pulse">
+                <div className="w-16 h-3 bg-white/5 rounded" />
+                <div className="w-12 h-16 bg-white/5 rounded" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-white/5 rounded w-1/3" />
+                  <div className="h-3 bg-white/5 rounded w-1/4" />
                 </div>
               </div>
-            );
-          })}
-        </div>
-        {ongoingAnime.length === 0 && (
-          <div className="text-center py-12 text-gray-500">No ongoing anime to display.</div>
+            ))}
+          </div>
+        ) : filteredSchedule.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-gray-500 text-lg">No anime scheduled for {FULL_DAYS[selectedDay]}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredSchedule.map((entry, i) => (
+              <Link
+                key={i}
+                href={`/watch/${entry.slug}/${entry.episodeNumber}`}
+                className="flex items-center gap-4 bg-[#1a1a2e] border border-white/5 rounded-lg p-4 hover:border-purple-500/30 hover:bg-white/5 transition-all group"
+              >
+                <span className="text-sm text-gray-500 w-16 font-mono">{entry.airTime}</span>
+                <div className="w-12 h-16 rounded overflow-hidden bg-white/5 flex-shrink-0">
+                  <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-[#1a1a2e]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-200 group-hover:text-purple-400 transition-colors">
+                    {entry.animeTitle}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-0.5">Episode {entry.episodeNumber}</p>
+                </div>
+                <span className="text-xs bg-purple-600/20 text-purple-400 px-3 py-1.5 rounded font-medium group-hover:bg-purple-600 group-hover:text-white transition-colors flex items-center gap-1">
+                  <span>▶</span> Watch
+                </span>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
     </div>

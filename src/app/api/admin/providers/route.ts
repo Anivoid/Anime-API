@@ -86,8 +86,6 @@ export async function POST(req: NextRequest) {
     type: body.type ?? "api",
     baseUrl: body.baseUrl ?? "",
     apiKeyEnv: body.apiKeyEnv,
-    bypassService: body.bypassService ?? "none",
-    bypassKeyEnv: body.bypassKeyEnv,
     timeout: body.timeout ?? 10000,
     maxConcurrent: body.maxConcurrent ?? 3,
     supportsSub: body.supportsSub ?? true,

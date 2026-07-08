@@ -21,8 +21,6 @@ export interface ProviderConfig {
   type: "api" | "scrape" | "local" | "embed";
   baseUrl: string;
   apiKeyEnv?: string;
-  bypassService?: "scrape.do" | "flaresolverr" | "none";
-  bypassKeyEnv?: string;
   timeout: number;
   maxConcurrent: number;
   supportsSub: boolean;
@@ -109,17 +107,14 @@ const DEFAULT_CONFIG: ProviderStoreData = {
       description: "Pre-seeded anime with local video URLs",
     }),
     makeProvider({
-      id: "miruro",
-      name: "MiruroAPI",
+      id: "sankanime",
+      name: "Sankanime",
       enabled: true,
       priority: 2,
       type: "api",
-      baseUrl: process.env.MIRURO_API_URL || "https://miruro-api-coral.vercel.app",
-      apiKeyEnv: undefined,
-      bypassService: "scrape.do",
-      bypassKeyEnv: "SCRAPE_DO_TOKEN",
-      timeout: 12000,
-      description: "Community scraping API — Kiwi, Anify, AnimeSkip providers",
+      baseUrl: "https://www.sankavollerei.web.id/anime",
+      timeout: 15000,
+      description: "SankaVollerei API — 12+ anime sources, no scraper needed",
     }),
     makeProvider({
       id: "aniwatch",

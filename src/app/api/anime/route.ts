@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const type = searchParams.get("type") || "";
     const season = searchParams.get("season") || "";
     const year = searchParams.get("year") || "";
+    const letter = searchParams.get("letter") || "";
     const trending = searchParams.get("trending") === "true";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "12");
@@ -56,6 +57,14 @@ export async function GET(request: Request) {
           genre: { slug: genre },
         },
       };
+    }
+
+    if (letter && letter !== "All") {
+      if (letter === "#") {
+        where.title = { not: { startsWith: /[A-Za-z]/.source } };
+      } else {
+        where.title = { startsWith: letter };
+      }
     }
 
     const [anime, total] = await Promise.all([

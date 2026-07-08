@@ -14,6 +14,7 @@ export interface StreamSource {
   url: string;
   quality?: string;
   isM3U8: boolean;
+  isEmbed?: boolean;
   referer?: string;
   headers?: Record<string, string>;
 }
@@ -71,47 +72,17 @@ function setCachedResult(params: StreamParams, providerId: string, result: Strea
 }
 
 // ═══════════════════════════════════════════════════════════
-// Bypass: scrape.do wraps any URL through their proxy
+// HTTP fetch with timeout
 // ═══════════════════════════════════════════════════════════
-function scrapeDoUrl(url: string, token: string): string {
-  return `https://api.scrape.do?token=${token}&url=${encodeURIComponent(url)}&render=true&super=true&sessionTtl=120`;
-}
-
-function getBypassUrl(url: string, config: ProviderConfig, settings: ProviderStoreData["globalSettings"]): string {
-  if (config.bypassService === "scrape.do" && config.bypassKeyEnv) {
-    const token = process.env[config.bypassKeyEnv] || settings.scrapeDoToken;
-    if (token) return scrapeDoUrl(url, token);
-  }
-  return url;
-}
-
-async function fetchWithBypass(
+async function fetchWithTimeout(
   url: string,
-  config: ProviderConfig,
-  settings: ProviderStoreData["globalSettings"],
+  timeout: number,
   init?: RequestInit
 ): Promise<Response> {
-  const timeout = config.timeout || 10000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
-
   try {
-    if (config.bypassService === "flaresolverr" && settings.flaresolverrUrl) {
-      const res = await fetch(settings.flaresolverrUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cmd: "request.get", url, maxTimeout: timeout }),
-        signal: controller.signal,
-      });
-      const data = await res.json();
-      return new Response(data.solution?.response || "", {
-        status: data.status === "ok" ? 200 : 500,
-        headers: { "Content-Type": "text/html" },
-      });
-    }
-
-    const targetUrl = getBypassUrl(url, config, settings);
-    return await fetch(targetUrl, { ...init, signal: controller.signal });
+    return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -158,59 +129,199 @@ async function fetchLocalDb(params: StreamParams): Promise<StreamResult> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Provider: MiruroAPI
+// Provider: Sankanime (SankaVollerei API)
+// 12+ anime sources: Samehadaku, Otakudesu, Animasu, etc.
+// No scraper needed — returns embed/stream URLs directly
 // ═══════════════════════════════════════════════════════════
-async function fetchMiruro(params: StreamParams, config: ProviderConfig, settings: ProviderStoreData["globalSettings"]): Promise<StreamResult> {
-  if (!config.baseUrl) return { success: false, provider: "miruro", sources: [], error: "No base URL" };
+const SANKANIME_BASE = "https://www.sankavollerei.web.id/anime";
 
-  const slug = params.animeTitle
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .substring(0, 60);
+interface SankaSearchResult {
+  title: string;
+  animeId: string;
+  poster?: string;
+  status?: string;
+  genreList?: { title: string; genreId: string }[];
+}
 
-  const provider = params.provider || "kiwi";
-  const category = params.category || "sub";
+interface SankaEpisode {
+  title: number | string;
+  eps?: number;
+  episodeId: string;
+}
 
-  const url = `${config.baseUrl}/api/watch/${provider}/${params.anilistId || 0}/${category}/${slug}`;
+interface SankaStream {
+  name: string;
+  url: string;
+}
+
+async function sankaFetch<T>(path: string, timeout = 12000): Promise<T | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(`${SANKANIME_BASE}${path}`, {
+      signal: controller.signal,
+      headers: { "User-Agent": "AnimeVoid/1.0" },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isEmbedUrl(url: string): boolean {
+  return /blogger\.com|vidhide|yourupload|mega\.nz|filedon|krakenfiles|pixeldrain|embed[2]?\./i.test(url);
+}
+
+function isDirectStream(url: string): boolean {
+  return /\.(m3u8|mp4|mkv|webm)(\?|$)/i.test(url) || /googlevideo\.com|cdn\./i.test(url);
+}
+
+async function searchSankaAnime(query: string): Promise<SankaSearchResult | null> {
+  // Try Samehadaku first (most reliable), then Otakudesu
+  const sources = [
+    `/samehadaku/search?q=${encodeURIComponent(query)}`,
+    `/search/${encodeURIComponent(query)}`,
+  ];
+
+  for (const path of sources) {
+    const data = await sankaFetch<{ status: string; data?: { animeList?: SankaSearchResult[] } }>(path);
+    if (data?.status === "success" && data.data?.animeList?.length) {
+      return data.data.animeList[0];
+    }
+  }
+  return null;
+}
+
+async function getSankaEpisodes(animeId: string, source: "samehadaku" | "otakudesu"): Promise<SankaEpisode[]> {
+  const path = source === "samehadaku"
+    ? `/samehadaku/anime/${animeId}`
+    : `/anime/${animeId}`;
+
+  const data = await sankaFetch<{ status: string; data?: { episodeList?: SankaEpisode[] } }>(path);
+  return data?.data?.episodeList || [];
+}
+
+async function getSankaStream(episodeId: string, source: "samehadaku" | "otakudesu"): Promise<{
+  embedUrl: string;
+  servers: { name: string; serverId: string; quality?: string }[];
+} | null> {
+  const path = source === "samehadaku"
+    ? `/samehadaku/episode/${episodeId}`
+    : `/episode/${episodeId}`;
+
+  const data = await sankaFetch<{
+    status: string;
+    data?: {
+      defaultStreamingUrl?: string;
+      server?: { qualities?: { title: string; serverList: { title: string; serverId: string }[] }[] };
+    };
+  }>(path, 15000);
+
+  if (!data?.data) return null;
+
+  const servers: { name: string; serverId: string; quality?: string }[] = [];
+  if (data.data.server?.qualities) {
+    for (const q of data.data.server.qualities) {
+      for (const s of q.serverList) {
+        servers.push({ name: s.title, serverId: s.serverId, quality: q.title });
+      }
+    }
+  }
+
+  return {
+    embedUrl: data.data.defaultStreamingUrl || "",
+    servers,
+  };
+}
+
+async function resolveSankaServer(serverId: string, source: "samehadaku" | "otakudesu"): Promise<string | null> {
+  const path = source === "samehadaku"
+    ? `/samehadaku/server/${serverId}`
+    : `/server/${serverId}`;
+
+  const data = await sankaFetch<{ status: string; data?: { url?: string } }>(path);
+  return data?.data?.url || null;
+}
+
+async function fetchSankanime(params: StreamParams): Promise<StreamResult> {
+  const title = params.animeTitle;
+  if (!title) return { success: false, provider: "sankanime", sources: [], error: "No title" };
 
   try {
-    const res = await fetchWithBypass(url, config, settings);
-    if (!res.ok) return { success: false, provider: "miruro", sources: [], error: `HTTP ${res.status}` };
+    // Step 1: Search
+    const anime = await searchSankaAnime(title);
+    if (!anime) return { success: false, provider: "sankanime", sources: [], error: "Anime not found" };
 
-    const data = await res.json();
-    if (data.success === false || !data.streams?.length) {
-      return { success: false, provider: "miruro", sources: [], error: data.message || "No streams" };
+    // Step 2: Get episodes
+    const source: "samehadaku" | "otakudesu" = anime.animeId.includes("sub-indo") ? "otakudesu" : "samehadaku";
+    const episodes = await getSankaEpisodes(anime.animeId, source);
+    if (!episodes.length) return { success: false, provider: "sankanime", sources: [], error: "No episodes" };
+
+    // Find episode by number (episode list is newest-first)
+    // API returns title as number (e.g. 1, 2, 220) or eps field
+    const targetEp = episodes.find((e) => {
+      const epNum = typeof e.title === "number" ? e.title : e.eps;
+      return epNum === params.episodeNumber;
+    });
+    if (!targetEp) return { success: false, provider: "sankanime", sources: [], error: `Episode ${params.episodeNumber} not found` };
+
+    // Step 3: Get stream info
+    const streamInfo = await getSankaStream(targetEp.episodeId, source);
+    if (!streamInfo) return { success: false, provider: "sankanime", sources: [], error: "No stream info" };
+
+    const sources: StreamSource[] = [];
+
+    // Primary: defaultStreamingUrl
+    if (streamInfo.embedUrl) {
+      sources.push({
+        url: streamInfo.embedUrl,
+        isM3U8: isDirectStream(streamInfo.embedUrl) && streamInfo.embedUrl.endsWith(".m3u8"),
+        quality: "auto",
+        isEmbed: isEmbedUrl(streamInfo.embedUrl),
+      });
+    }
+
+    // Try each server for alternative streams
+    for (const server of streamInfo.servers.slice(0, 3)) {
+      const serverUrl = await resolveSankaServer(server.serverId, source);
+      if (serverUrl && serverUrl !== streamInfo.embedUrl) {
+        sources.push({
+          url: serverUrl,
+          isM3U8: isDirectStream(serverUrl) && serverUrl.endsWith(".m3u8"),
+          quality: server.quality || "auto",
+          isEmbed: isEmbedUrl(serverUrl),
+        });
+      }
+    }
+
+    if (sources.length === 0) {
+      return { success: false, provider: "sankanime", sources: [], error: "No playable URLs" };
     }
 
     return {
       success: true,
-      provider: "miruro",
-      sources: data.streams.map((s: { url: string; type: string; headers?: Record<string, string> }) => ({
-        url: s.url,
-        isM3U8: s.type === "hls" || s.url.endsWith(".m3u8"),
-        quality: s.type,
-        headers: s.headers,
-      })),
-      subtitles: data.subtitles,
-      skipTimes: data.skipTimes,
+      provider: "sankanime",
+      sources,
     };
   } catch (e) {
-    return { success: false, provider: "miruro", sources: [], error: (e as Error).message };
+    return { success: false, provider: "sankanime", sources: [], error: (e as Error).message };
   }
 }
 
 // ═══════════════════════════════════════════════════════════
 // Provider: AniWatch (Anime-API)
 // ═══════════════════════════════════════════════════════════
-async function fetchAniwatch(params: StreamParams, config: ProviderConfig, settings: ProviderStoreData["globalSettings"]): Promise<StreamResult> {
+async function fetchAniwatch(params: StreamParams, config: ProviderConfig, _settings: ProviderStoreData["globalSettings"]): Promise<StreamResult> {
   if (!config.baseUrl) return { success: false, provider: "aniwatch", sources: [], error: "No base URL" };
 
   const category = params.category || "sub";
 
   try {
     const searchUrl = `${config.baseUrl}/aniwatch/search?keyword=${encodeURIComponent(params.animeTitle)}&page=1`;
-    const searchRes = await fetchWithBypass(searchUrl, config, settings);
+    const searchRes = await fetchWithTimeout(searchUrl, config.timeout);
     if (!searchRes.ok) return { success: false, provider: "aniwatch", sources: [], error: `Search HTTP ${searchRes.status}` };
 
     const searchData = await searchRes.json();
@@ -218,7 +329,7 @@ async function fetchAniwatch(params: StreamParams, config: ProviderConfig, setti
     if (!anime) return { success: false, provider: "aniwatch", sources: [], error: "Anime not found" };
 
     const epUrl = `${config.baseUrl}/aniwatch/episodes/${anime.id}`;
-    const epRes = await fetchWithBypass(epUrl, config, settings);
+    const epRes = await fetchWithTimeout(epUrl, config.timeout);
     if (!epRes.ok) return { success: false, provider: "aniwatch", sources: [], error: `Episodes HTTP ${epRes.status}` };
 
     const epData = await epRes.json();
@@ -226,7 +337,7 @@ async function fetchAniwatch(params: StreamParams, config: ProviderConfig, setti
     if (!episode) return { success: false, provider: "aniwatch", sources: [], error: "Episode not found" };
 
     const srcUrl = `${config.baseUrl}/aniwatch/episode-srcs?id=${episode.episodeId}&server=vidstreaming&category=${category}`;
-    const srcRes = await fetchWithBypass(srcUrl, config, settings);
+    const srcRes = await fetchWithTimeout(srcUrl, config.timeout);
     if (!srcRes.ok) return { success: false, provider: "aniwatch", sources: [], error: `Sources HTTP ${srcRes.status}` };
 
     const srcData = await srcRes.json();
@@ -251,12 +362,12 @@ async function fetchAniwatch(params: StreamParams, config: ProviderConfig, setti
 // ═══════════════════════════════════════════════════════════
 // Provider: Consumet
 // ═══════════════════════════════════════════════════════════
-async function fetchConsumet(params: StreamParams, config: ProviderConfig, settings: ProviderStoreData["globalSettings"]): Promise<StreamResult> {
+async function fetchConsumet(params: StreamParams, config: ProviderConfig, _settings: ProviderStoreData["globalSettings"]): Promise<StreamResult> {
   if (!config.baseUrl) return { success: false, provider: "consumet", sources: [], error: "No base URL" };
 
   try {
     const searchUrl = `${config.baseUrl}/anime/zoro/${encodeURIComponent(params.animeTitle)}`;
-    const searchRes = await fetchWithBypass(searchUrl, config, settings);
+    const searchRes = await fetchWithTimeout(searchUrl, config.timeout);
     if (!searchRes.ok) return { success: false, provider: "consumet", sources: [], error: `Search HTTP ${searchRes.status}` };
 
     const searchData = await searchRes.json();
@@ -264,7 +375,7 @@ async function fetchConsumet(params: StreamParams, config: ProviderConfig, setti
     if (!anime) return { success: false, provider: "consumet", sources: [], error: "Anime not found" };
 
     const epUrl = `${config.baseUrl}/anime/zoro/info/${anime.id}`;
-    const epRes = await fetchWithBypass(epUrl, config, settings);
+    const epRes = await fetchWithTimeout(epUrl, config.timeout);
     if (!epRes.ok) return { success: false, provider: "consumet", sources: [], error: `Info HTTP ${epRes.status}` };
 
     const epData = await epRes.json();
@@ -272,7 +383,7 @@ async function fetchConsumet(params: StreamParams, config: ProviderConfig, setti
     if (!episode) return { success: false, provider: "consumet", sources: [], error: "Episode not found" };
 
     const streamUrl = `${config.baseUrl}/anime/zoro/watch/${episode.id}`;
-    const streamRes = await fetchWithBypass(streamUrl, config, settings);
+    const streamRes = await fetchWithTimeout(streamUrl, config.timeout);
     if (!streamRes.ok) return { success: false, provider: "consumet", sources: [], error: `Stream HTTP ${streamRes.status}` };
 
     const streamData = await streamRes.json();
@@ -302,7 +413,7 @@ const PROVIDER_MAP: Record<
   (params: StreamParams, config: ProviderConfig, settings: ProviderStoreData["globalSettings"]) => Promise<StreamResult>
 > = {
   "local-db": (params) => fetchLocalDb(params),
-  miruro: (params, config, settings) => fetchMiruro(params, config, settings),
+  sankanime: (params) => fetchSankanime(params),
   aniwatch: (params, config, settings) => fetchAniwatch(params, config, settings),
   consumet: (params, config, settings) => fetchConsumet(params, config, settings),
 };

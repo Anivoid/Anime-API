@@ -49,10 +49,11 @@ export async function GET(req: NextRequest) {
         results: {
           streams: result.sources.map((s) => ({
             url: s.url,
-            type: s.isM3U8 ? "hls" : "mp4",
+            type: s.isM3U8 ? "hls" : s.isEmbed ? "embed" : "mp4",
             quality: s.quality,
             referer: s.referer,
             headers: s.headers,
+            isEmbed: s.isEmbed || false,
           })),
           subtitles: result.subtitles || [],
           skipTimes: result.skipTimes,
