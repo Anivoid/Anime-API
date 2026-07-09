@@ -39,6 +39,8 @@ interface Anime {
     releaseYear: number;
     genres: { genre: { name: string } }[];
   }[];
+  totalEpisodeCount?: number;
+  airedEpisodeCount?: number;
   _count: {
     animeLikes: number;
     comments: number;
@@ -91,6 +93,10 @@ export default function AnimeDetailPage({
             const m = data?.Media;
             if (m) {
               const statusMap: Record<string, string> = { FINISHED: "COMPLETED", RELEASING: "ONGOING", NOT_YET_RELEASED: "UPCOMING", CANCELLED: "COMPLETED" };
+              const airedEpisodes = m.status === "RELEASING"
+                ? (m.nextAiringEpisode?.episode || 1) - 1
+                : (m.episodes || 0);
+              const totalEpisodes = m.episodes || airedEpisodes || 0;
               setAnime({
                 id: slug,
                 title: m.title.english || m.title.romaji,
@@ -104,7 +110,9 @@ export default function AnimeDetailPage({
                 type: m.format || "TV",
                 season: m.season,
                 genres: (m.genres || []).map((g: string) => ({ genre: { name: g, slug: g.toLowerCase().replace(/\s+/g, "-") } })),
-                episodes: Array.from({ length: m.episodes || 0 }, (_, i) => ({ id: `${slug}-ep-${i + 1}`, number: i + 1, title: `Episode ${i + 1}`, duration: m.duration || 24 })),
+                episodes: Array.from({ length: airedEpisodes || totalEpisodes }, (_, i) => ({ id: `${slug}-ep-${i + 1}`, number: i + 1, title: `Episode ${i + 1}`, duration: m.duration || 24 })),
+                totalEpisodeCount: totalEpisodes,
+                airedEpisodeCount: airedEpisodes,
                 similar: [],
                 _count: { animeLikes: 0, comments: 0 },
               });
@@ -226,8 +234,10 @@ export default function AnimeDetailPage({
             </div>
 
             <div className="text-sm text-gray-500">
-              {anime.episodes.length} episodes • {anime._count.animeLikes} likes •{" "}
-              {anime._count.comments} comments
+              {anime.totalEpisodeCount && anime.airedEpisodeCount !== undefined && anime.totalEpisodeCount !== anime.airedEpisodeCount
+                ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount} episodes aired`
+                : `${anime.episodes.length} episodes`
+              } • {anime._count.animeLikes} likes • {anime._count.comments} comments
             </div>
           </div>
         </div>
@@ -236,7 +246,11 @@ export default function AnimeDetailPage({
         {anime.episodes.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold mb-6">
-              Episodes <span className="text-void-red">({anime.episodes.length})</span>
+              Episodes <span className="text-void-red">
+                ({anime.totalEpisodeCount && anime.airedEpisodeCount !== undefined && anime.totalEpisodeCount !== anime.airedEpisodeCount
+                  ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount}`
+                  : anime.episodes.length})
+              </span>
             </h2>
             <div className="space-y-2">
               {anime.episodes.map((episode) => (
