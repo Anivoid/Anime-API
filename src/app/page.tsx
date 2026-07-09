@@ -19,6 +19,8 @@ async function getAniListTrending() {
           season
           seasonYear
           episodes
+          status
+          nextAiringEpisode { episode }
         }
       }
     }`;
@@ -44,12 +46,23 @@ interface AniListMedia {
   season: string | null;
   seasonYear: number | null;
   episodes: number | null;
+  status: string;
+  nextAiringEpisode: { episode: number } | null;
 }
 
 function AniListAnimeCard({ item }: { item: AniListMedia }) {
   const title = item.title.english || item.title.romaji;
   const slug = `anilist-${item.id}`;
   const format = item.format || "TV";
+
+  // Calculate aired episodes for ongoing anime
+  const isOngoing = item.status === "RELEASING";
+  const airedEpisodes = isOngoing
+    ? (item.nextAiringEpisode?.episode || 1) - 1
+    : (item.episodes || 0);
+  const totalEpisodes = item.episodes || 0;
+  const displayEpisodes = isOngoing ? airedEpisodes : totalEpisodes;
+
   return (
     <Link href={`/anime/${slug}`} className="group block">
       <div className="relative aspect-[3/4] bg-[#1a1a2e] rounded overflow-hidden mb-2 border border-white/5 group-hover:border-white/15 transition-all duration-200">
@@ -58,14 +71,16 @@ function AniListAnimeCard({ item }: { item: AniListMedia }) {
           <img src={item.coverImage.large} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-        {item.episodes && (
+        {displayEpisodes > 0 && (
           <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10">
             <span className="bg-green-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">
-              SUB {item.episodes}
+              SUB {displayEpisodes}
             </span>
-            <span className="bg-blue-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">
-              {item.episodes}
-            </span>
+            {isOngoing && totalEpisodes > 0 && (
+              <span className="bg-blue-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">
+                {totalEpisodes}
+              </span>
+            )}
           </div>
         )}
         <div className="absolute top-2 left-2 z-10">
@@ -77,7 +92,7 @@ function AniListAnimeCard({ item }: { item: AniListMedia }) {
       </h3>
       <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-500">
         {item.seasonYear && <span>{item.seasonYear}</span>}
-        {item.episodes && <span>• {item.episodes} ep</span>}
+        {displayEpisodes > 0 && <span>• {displayEpisodes} ep</span>}
       </div>
     </Link>
   );

@@ -30,6 +30,9 @@ function formatTimeUntil(seconds: number): string {
 }
 
 function EpisodeCard({ item }: { item: EpisodeItem }) {
+  // Calculate aired episodes (nextAiringEpisode.episode - 1 = current aired count)
+  const airedEpisodes = item.nextAiringAt ? Math.max(0, (item.episodeNumber || 1) - 1) : (item.totalEpisodes || 0);
+
   return (
     <Link href={`/anime/${item.slug}`} className="group block">
       <div className="relative aspect-[3/4] bg-[#1a1a2e] rounded overflow-hidden mb-2 border border-white/5 group-hover:border-purple-500/50 transition-all duration-200">
@@ -41,13 +44,15 @@ function EpisodeCard({ item }: { item: EpisodeItem }) {
         <div className="absolute top-2 left-2 z-10">
           <span className="bg-black/70 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-medium">{item.format}</span>
         </div>
-        <div className="absolute top-2 right-2 z-10">
-          <span className="bg-purple-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
-            EP {item.episodeNumber}
-          </span>
-        </div>
-        {item.timeUntilAiring !== null && item.timeUntilAiring > 0 && (
+        {airedEpisodes > 0 && (
           <div className="absolute bottom-2 left-2 z-10">
+            <span className="bg-purple-600/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">
+              EP {airedEpisodes}
+            </span>
+          </div>
+        )}
+        {item.timeUntilAiring !== null && item.timeUntilAiring > 0 && (
+          <div className="absolute bottom-2 right-2 z-10">
             <span className="bg-orange-500/90 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">
               {formatTimeUntil(item.timeUntilAiring)}
             </span>
@@ -59,7 +64,7 @@ function EpisodeCard({ item }: { item: EpisodeItem }) {
       </h3>
       <div className="flex items-center gap-1.5 mt-1 text-[11px] text-gray-500">
         {item.seasonYear && <span>{item.seasonYear}</span>}
-        {item.totalEpisodes && <span>• {item.totalEpisodes} ep</span>}
+        {airedEpisodes > 0 && <span>• {airedEpisodes} ep</span>}
         {item.averageScore && <span className="text-green-400">• {item.averageScore}%</span>}
       </div>
       {item.genres.length > 0 && (
