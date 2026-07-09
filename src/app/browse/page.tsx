@@ -36,7 +36,7 @@ type SortOption = "title" | "rating" | "releaseYear" | "popular" | "trending";
 const TYPES = ["All", "TV", "Movie", "OVA", "ONA", "Special"];
 const SEASONS = ["All", "Winter", "Spring", "Summer", "Fall"];
 const STATUSES = ["All", "Ongoing", "Completed", "Upcoming"];
-const YEARS = ["All", ...Array.from({ length: 15 }, (_, i) => String(2026 - i))];
+const YEARS = ["All", ...Array.from({ length: 20 }, (_, i) => String(2026 - i))];
 const LETTERS = ["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
 function BrowseContent() {
@@ -143,10 +143,69 @@ function BrowseContent() {
           </div>
         </div>
 
+        {/* Season Selector - Large Visual Buttons */}
+        <div className="bg-[#1a1a2e] border border-white/5 rounded-lg p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Season</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const idx = YEARS.indexOf(selectedYear);
+                  if (idx < YEARS.length - 1) setSelectedYear(YEARS[idx + 1]);
+                }}
+                className="w-8 h-8 rounded bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
+              >
+                &#8249;
+              </button>
+              <span className="text-white font-bold text-sm min-w-[60px] text-center">{selectedYear === "All" ? "All Years" : selectedYear}</span>
+              <button
+                onClick={() => {
+                  const idx = YEARS.indexOf(selectedYear);
+                  if (idx > 0) setSelectedYear(YEARS[idx - 1]);
+                }}
+                className="w-8 h-8 rounded bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
+              >
+                &#8250;
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <button
+              onClick={() => { setSelectedSeason("All"); setPage(1); }}
+              className={`py-4 rounded-lg font-bold text-sm transition-all border ${
+                selectedSeason === "All"
+                  ? "bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/20"
+                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              All Seasons
+            </button>
+            {[
+              { name: "Winter", icon: "\u2744", color: "from-blue-500/20 to-cyan-500/20" },
+              { name: "Spring", icon: "\uD83C\uDF38", color: "from-green-500/20 to-emerald-500/20" },
+              { name: "Summer", icon: "\u2600", color: "from-orange-500/20 to-yellow-500/20" },
+              { name: "Fall", icon: "\uD83C\uDF42", color: "from-red-500/20 to-orange-500/20" },
+            ].map((s) => (
+              <button
+                key={s.name}
+                onClick={() => { setSelectedSeason(selectedSeason === s.name ? "All" : s.name); setPage(1); }}
+                className={`py-4 rounded-lg font-bold text-sm transition-all border ${
+                  selectedSeason === s.name
+                    ? `bg-gradient-to-br ${s.color} border-purple-500 text-white shadow-lg shadow-purple-600/20`
+                    : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <span className="text-lg">{s.icon}</span>
+                <div className="mt-1">{s.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="bg-[#1a1a2e] border border-white/5 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="col-span-2 md:col-span-3 lg:col-span-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="col-span-2 md:col-span-3 lg:col-span-1">
               <label className="block text-xs text-gray-500 mb-1">Search</label>
               <input
                 type="text"
@@ -189,33 +248,6 @@ function BrowseContent() {
                 <option value="trending">Trending</option>
               </select>
             </div>
-          </div>
-
-          {/* Season + Year row */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {SEASONS.filter((s) => s !== "All").map((s) => (
-              <button
-                key={s}
-                onClick={() => { setSelectedSeason(selectedSeason === s ? "All" : s); setPage(1); }}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                  selectedSeason === s ? "bg-purple-600 text-white" : "bg-white/5 text-gray-400 hover:text-white"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-            <div className="w-px bg-white/10 mx-1" />
-            {YEARS.slice(0, 6).map((y) => (
-              <button
-                key={y}
-                onClick={() => { setSelectedYear(selectedYear === y ? "All" : y); setPage(1); }}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                  selectedYear === y ? "bg-purple-600 text-white" : "bg-white/5 text-gray-400 hover:text-white"
-                }`}
-              >
-                {y}
-              </button>
-            ))}
           </div>
 
           {hasFilters && (
