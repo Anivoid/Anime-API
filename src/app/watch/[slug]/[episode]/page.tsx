@@ -126,6 +126,40 @@ export default function WatchPage({
               }
             }
           } catch {}
+        } else {
+          // Not in local DB — try to find by searching AniList with the slug as title
+          const titleFromSlug = slug.replace(/-/g, " ");
+          try {
+            const searchRes = await fetch(`/api/search/anilist?q=${encodeURIComponent(titleFromSlug)}&perPage=1`);
+            if (searchRes.ok) {
+              const searchData = await searchRes.json();
+              if (searchData.data?.length > 0) {
+                const result = searchData.data[0];
+                const anilistIdNum = result.malId;
+                setAnilistId(String(anilistIdNum));
+
+                const airedEpisodes = result.nextAiring
+                  ? result.nextAiring.episode - 1
+                  : (result.episodeCount || 0);
+                const totalEpisodes = result.episodeCount || airedEpisodes || 12;
+                const episodeCount = airedEpisodes || totalEpisodes;
+
+                setAnime({
+                  id: `anilist-${anilistIdNum}`,
+                  title: result.title,
+                  slug: `anilist-${anilistIdNum}`,
+                  season: null,
+                  episodes: Array.from({ length: episodeCount }, (_, i) => ({
+                    id: `anilist-${anilistIdNum}-ep-${i + 1}`,
+                    number: i + 1,
+                    title: `Episode ${i + 1}`,
+                    duration: 24,
+                    videoUrl: null,
+                  })),
+                });
+              }
+            }
+          } catch {}
         }
       } catch (error) {
         console.error("Error fetching anime:", error);
