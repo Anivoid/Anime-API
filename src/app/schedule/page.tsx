@@ -5,11 +5,13 @@ import Header from "@/components/Header";
 import Link from "next/link";
 
 interface ScheduleEntry {
+  animeId: number;
   animeTitle: string;
   slug: string;
   episodeNumber: number;
   airTime: string;
   airDay: string;
+  coverImage: string | null;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -17,6 +19,17 @@ const FULL_DAYS: Record<string, string> = {
   Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
   Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
 };
+
+function getDayName(timestamp: number): string {
+  const d = new Date(timestamp * 1000);
+  const jsDay = d.getDay();
+  return DAYS[jsDay === 0 ? 6 : jsDay - 1];
+}
+
+function formatAirTime(timestamp: number): string {
+  const d = new Date(timestamp * 1000);
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
 
 export default function SchedulePage() {
   const [selectedDay, setSelectedDay] = useState(() => {
@@ -27,13 +40,85 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/schedule")
-      .then((r) => r.json())
-      .then((data) => {
-        setSchedule(data.schedule || []);
+    const fetchSchedule = async () => {
+      try {
+        const query = `query {
+          Page(page: 1, perPage: 50) {
+            media(status: RELEASING, type: ANIME, sort: TRENDING_DESC) {
+              id
+              title { romaji english }
+              coverImage { medium }
+              nextAiringEpisode { episode airingAt timeUntilAiring }
+              airingSchedule(notYetAired: true, perPage: 50) {
+                edges {
+                  node {
+                    episode
+                    airingAt
+                    timeUntilAiring
+                  }
+                }
+              }
+            }
+          }
+        }`;
+
+        const res = await fetch("https://graphql.anilist.co", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!res.ok) throw new Error("AniList API error");
+
+        const { data } = await res.json();
+        const entries: ScheduleEntry[] = [];
+
+        for (const media of data.Page.media) {
+          const title = media.title.english || media.title.romaji;
+          const slug = `anilist-${media.id}`;
+
+          // Use nextAiringEpisode for current airing
+          if (media.nextAiringEpisode) {
+            const ep = media.nextAiringEpisode.episode;
+            const airAt = media.nextAiringEpisode.airingAt;
+            entries.push({
+              animeId: media.id,
+              animeTitle: title,
+              slug,
+              episodeNumber: ep,
+              airTime: formatAirTime(airAt),
+              airDay: getDayName(airAt),
+              coverImage: media.coverImage?.medium || null,
+            });
+          }
+
+          // Also add upcoming episodes from airingSchedule
+          for (const edge of (media.airingSchedule?.edges || []).slice(0, 3)) {
+            const node = edge.node;
+            const airDay = getDayName(node.airingAt);
+            // Skip if already added via nextAiringEpisode
+            if (media.nextAiringEpisode && node.episode === media.nextAiringEpisode.episode) continue;
+            entries.push({
+              animeId: media.id,
+              animeTitle: title,
+              slug,
+              episodeNumber: node.episode,
+              airTime: formatAirTime(node.airingAt),
+              airDay,
+              coverImage: media.coverImage?.medium || null,
+            });
+          }
+        }
+
+        setSchedule(entries);
+      } catch (error) {
+        console.error("Failed to fetch schedule:", error);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+
+    fetchSchedule();
   }, []);
 
   const filteredSchedule = schedule.filter((s) => s.airDay === selectedDay);
@@ -43,7 +128,7 @@ export default function SchedulePage() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-white mb-2">Schedule</h1>
-        <p className="text-gray-500 text-sm mb-6">Weekly anime release schedule</p>
+        <p className="text-gray-500 text-sm mb-6">Weekly anime airing schedule from AniList</p>
 
         {/* Day selector */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -85,13 +170,18 @@ export default function SchedulePage() {
           <div className="space-y-3">
             {filteredSchedule.map((entry, i) => (
               <Link
-                key={i}
+                key={`${entry.animeId}-${entry.episodeNumber}-${i}`}
                 href={`/watch/${entry.slug}/${entry.episodeNumber}`}
                 className="flex items-center gap-4 bg-[#1a1a2e] border border-white/5 rounded-lg p-4 hover:border-purple-500/30 hover:bg-white/5 transition-all group"
               >
                 <span className="text-sm text-gray-500 w-16 font-mono">{entry.airTime}</span>
                 <div className="w-12 h-16 rounded overflow-hidden bg-white/5 flex-shrink-0">
-                  <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-[#1a1a2e]" />
+                  {entry.coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={entry.coverImage} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-[#1a1a2e]" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-200 group-hover:text-purple-400 transition-colors">

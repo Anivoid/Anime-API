@@ -91,12 +91,17 @@ export default function WatchPage({
             const m = data?.Media;
             if (m) {
               const title = m.title.english || m.title.romaji;
+              const airedEpisodes = m.status === "RELEASING"
+                ? (m.nextAiringEpisode?.episode || 1) - 1
+                : (m.episodes || 0);
+              const totalEpisodes = m.episodes || airedEpisodes || 12;
+              const episodeCount = airedEpisodes || totalEpisodes;
               setAnime({
                 id: slug,
                 title,
                 slug,
                 season: null,
-                episodes: Array.from({ length: m.episodes || 12 }, (_, i) => ({
+                episodes: Array.from({ length: episodeCount }, (_, i) => ({
                   id: `${slug}-ep-${i + 1}`,
                   number: i + 1,
                   title: `Episode ${i + 1}`,
