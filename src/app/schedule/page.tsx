@@ -178,7 +178,7 @@ export default function SchedulePage() {
                 <div className="w-12 h-16 rounded overflow-hidden bg-white/5 flex-shrink-0">
                   {entry.coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={entry.coverImage} alt="" className="w-full h-full object-cover" />
+                    <img src={entry.coverImage} alt="" className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-purple-900/20 to-[#1a1a2e]" />
                   )}

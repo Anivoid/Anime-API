@@ -55,7 +55,7 @@ function ListItem({ anime, href, showEpisode }: { anime: AnimeItem; href: string
       <div className="w-12 h-16 rounded overflow-hidden bg-[#1a1a2e] flex-shrink-0 relative">
         {anime.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={anime.coverImage} alt={anime.title} className="w-full h-full object-cover" />
+                    <img src={anime.coverImage} alt={anime.title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
         )}

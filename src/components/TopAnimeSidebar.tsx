@@ -122,7 +122,7 @@ export function TopAnimeSidebar() {
               <div className="w-10 h-14 rounded overflow-hidden bg-white/5 flex-shrink-0">
                 {item.coverImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover" />
+                    <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white/10 text-xs">?</div>
                 )}

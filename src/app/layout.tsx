@@ -24,6 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://s4.anilist.co" />
+        <link rel="dns-prefetch" href="https://s4.anilist.co" />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
