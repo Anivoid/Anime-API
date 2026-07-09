@@ -34,12 +34,8 @@ interface WatchHistoryEntry {
 }
 
 const SERVERS: VideoServer[] = [
-  { name: "VHD-1", id: "hd-1", type: "sub" },
-  { name: "VHD-2", id: "hd-2", type: "sub" },
-  { name: "VHD-3", id: "hd-3", type: "sub" },
-  { name: "VHD-4", id: "vidcloud", type: "sub" },
-  { name: "VHD-5", id: "streamtape", type: "sub" },
-  { name: "VHD-6", id: "mp4upload", type: "sub" },
+  { name: "Sankanime", id: "sankanime", type: "sub" },
+  { name: "AniWatch", id: "aniwatch", type: "sub" },
 ];
 
 export default function WatchPage({

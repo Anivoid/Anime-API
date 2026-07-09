@@ -28,12 +28,8 @@ interface EmbedPlayerProps {
 }
 
 const DEFAULT_SERVERS: VideoServer[] = [
-  { name: "VHD-1", id: "hd-1", type: "sub" },
-  { name: "VHD-2", id: "hd-2", type: "sub" },
-  { name: "VHD-3", id: "hd-3", type: "sub" },
-  { name: "VHD-4", id: "vidcloud", type: "sub" },
-  { name: "VHD-5", id: "streamtape", type: "sub" },
-  { name: "VHD-6", id: "mp4upload", type: "sub" },
+  { name: "Sankanime", id: "sankanime", type: "sub" },
+  { name: "AniWatch", id: "aniwatch", type: "sub" },
 ];
 
 export function EmbedPlayer({
@@ -158,7 +154,7 @@ export function EmbedPlayer({
           <div className="text-center">
             <p className="text-red-500 mb-2">{error}</p>
             <button
-              onClick={() => { setError(null); setLoading(true); setEmbedUrl(""); setTimeout(() => setEmbedUrl(`/api/embed?episodeId=${episodeId}&server=${selectedServer?.id || "hd-2"}&type=${audioType}`), 100); }}
+              onClick={() => { setError(null); setLoading(true); setEmbedUrl(""); setTimeout(() => setEmbedUrl(`/api/embed?episodeId=${episodeId}&server=${selectedServer?.id || "sankanime"}&type=${audioType}`), 100); }}
               className="text-void-red hover:text-void-red-glow text-sm"
             >
               Try another server

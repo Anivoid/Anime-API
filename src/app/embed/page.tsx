@@ -9,7 +9,7 @@ function EmbedContent() {
   const episodeId = searchParams.get("episodeId");
   const anilistId = searchParams.get("anilistId");
   const episodeNum = searchParams.get("episodeNum") || "1";
-  const server = searchParams.get("server") || "kiwi";
+  const server = searchParams.get("server") || "sankanime";
   const audioType = searchParams.get("type") || "sub";
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
