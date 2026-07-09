@@ -59,14 +59,7 @@ export default function AnimeDetailPage({
   useEffect(() => {
     const fetchAnime = async () => {
       try {
-        const res = await fetch(`/api/anime/${slug}`);
-        if (res.ok) {
-          const data = await res.json();
-          setAnime(data);
-          return;
-        }
-
-        // If not found locally and slug starts with anilist-, fetch from AniList
+        // For anilist-* slugs, always fetch from AniList directly
         if (slug.startsWith("anilist-")) {
           const anilistId = parseInt(slug.replace("anilist-", ""));
           const query = `query ($id: Int) {
@@ -118,6 +111,15 @@ export default function AnimeDetailPage({
               });
             }
           }
+          setLoading(false);
+          return;
+        }
+
+        // For local slugs, fetch from DB
+        const res = await fetch(`/api/anime/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAnime(data);
         }
       } catch (error) {
         console.error("Error fetching anime:", error);
@@ -234,8 +236,8 @@ export default function AnimeDetailPage({
             </div>
 
             <div className="text-sm text-gray-500">
-              {anime.totalEpisodeCount && anime.airedEpisodeCount !== undefined && anime.totalEpisodeCount !== anime.airedEpisodeCount
-                ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount} episodes aired`
+              {anime.status === "ONGOING" && anime.airedEpisodeCount !== undefined
+                ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount || anime.episodes.length} episodes aired`
                 : `${anime.episodes.length} episodes`
               } • {anime._count.animeLikes} likes • {anime._count.comments} comments
             </div>
@@ -247,8 +249,8 @@ export default function AnimeDetailPage({
           <div className="mt-12">
             <h2 className="text-2xl font-bold mb-6">
               Episodes <span className="text-void-red">
-                ({anime.totalEpisodeCount && anime.airedEpisodeCount !== undefined && anime.totalEpisodeCount !== anime.airedEpisodeCount
-                  ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount}`
+                ({anime.status === "ONGOING" && anime.airedEpisodeCount !== undefined
+                  ? `${anime.airedEpisodeCount}/${anime.totalEpisodeCount || anime.episodes.length}`
                   : anime.episodes.length})
               </span>
             </h2>
